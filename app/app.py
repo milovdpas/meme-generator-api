@@ -9,6 +9,7 @@ import random
 from scripts.create_shooting_star_meme import create_shooting_star_meme
 from scripts.remove_files import remove_old_files
 import logging
+import uuid
 
 app = Flask(__name__)
 CORS(app)  # Allow all origins for development
@@ -43,7 +44,7 @@ def upload_file():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         template = request.form.get('template', 'meme_template_2')  # Get the selected template
-        output_file = 'output.mp4'
+        output_file = str(uuid.uuid4()) + '.mp4'
         output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_file)
         create_shooting_star_meme(file_path, f'{template}.mp4', 'audio.mp3', "intro.mp4", output_path)
         return jsonify({'message': 'File processed successfully', 'output_video': f'/outputs/{output_file}'}), 200
