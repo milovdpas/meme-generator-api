@@ -14,16 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Start SSH agent and add private key with passphrase
-      - name: Setup SSH agent with passphrase
-        run: |
-          eval "$(ssh-agent -s)"  # Start ssh-agent
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > id_rsa  # Save private key to a file
-          chmod 600 id_rsa  # Set permissions for the private key
-          echo "${{ secrets.SSH_PASSPHRASE }}" | ssh-add id_rsa  # Add the private key with the passphrase
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_PASSPHRASE: ${{ secrets.SSH_PASSPHRASE }}
+      # Step 2: Setup SSH with passphrase
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # Step 3: Transfer files to VPS
       - name: Transfer files via SSH
