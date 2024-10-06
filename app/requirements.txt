@@ -1,0 +1,6 @@
+Flask==3.0.3
+flask_cors==5.0.0
+moviepy==1.0.3
+numpy==2.1.2
+Werkzeug==3.0.4
+opencv-python=4.10.0.84
