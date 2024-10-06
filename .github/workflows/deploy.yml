@@ -1,0 +1,35 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main # Trigger deployment on push to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Setup SSH
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Step 3: Transfer files to VPS
+      - name: Transfer files via SSH
+        run: |
+          # Create the target directory on VPS (if it doesn't exist)
+          ssh -o StrictHostKeyChecking=no root@191.101.80.235 "mkdir -p ~/meme-generator-api"
+          
+          # Transfer the app folder to the VPS
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" ./app/ root@191.101.80.235:~/meme-generator-api/
+
+      # Step 4: Restart the Flask app using systemd
+      - name: Restart Flask App
+        run: |
+          ssh -o StrictHostKeyChecking=no root@191.101.80.235 "sudo systemctl daemon-reload && sudo systemctl restart flask_app.service"
