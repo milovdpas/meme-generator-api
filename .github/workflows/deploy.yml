@@ -2,34 +2,65 @@ name: Deploy to VPS
 
 on:
   push:
-    branches:
-      - main # Trigger deployment on push to the main branch
+    branches: [main]
+    paths:
+      - "app/**"
+      - "docker-compose.prod.yml"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # Step 2: Setup SSH with passphrase
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.5.3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Step 3: Transfer files to VPS
-      - name: Transfer files via SSH
-        run: |
-          # Create the target directory on VPS (if it doesn't exist)
-          ssh -o StrictHostKeyChecking=no root@191.101.80.235 "mkdir -p ~/meme-generator-api"
-          
-          # Transfer the app folder to the VPS
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no" ./app/ root@191.101.80.235:~/meme-generator-api/
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/meme-generator-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/meme-generator-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      # Step 4: Restart the Flask app using systemd
-      - name: Restart Flask App
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Transfer deployment files to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no root@191.101.80.235 "sudo systemctl daemon-reload && sudo systemctl restart flask_app.service"
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "mkdir -p /opt/apps/meme-generator"
+
+          printf "DOCKERHUB_USERNAME=%s\n" "${{ secrets.DOCKERHUB_USERNAME }}" > deploy.env
+
+          rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" \
+            docker-compose.prod.yml \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/apps/meme-generator/docker-compose.yml
+          rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" \
+            deploy.env \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/opt/apps/meme-generator/.env
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            cd /opt/apps/meme-generator
+            docker compose pull
+            docker compose up -d
+            docker compose ps
+          ENDSSH

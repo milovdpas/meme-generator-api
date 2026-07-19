@@ -1,0 +1,18 @@
+services:
+  meme-generator:
+    image: ${DOCKERHUB_USERNAME}/meme-generator-api:latest
+    container_name: meme-generator            # nginx proxies to this name
+    restart: unless-stopped
+    expose:
+      - "5000"                                # internal only — ingress goes through the proxy
+    networks:
+      - web
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  web:
+    external: true
