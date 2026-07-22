@@ -7,6 +7,11 @@ services:
       - "5000"                                # internal only — ingress goes through the proxy
     networks:
       - web
+    volumes:
+      # Shared with the worker: uploads/outputs/job database
+      - meme-uploads:/app/uploads
+      - meme-outputs:/app/outputs
+      - meme-data:/app/data
     labels:
       # Picked up by the Ofelia scheduler container (job runs INSIDE this container)
       ofelia.enabled: "true"
@@ -18,6 +23,30 @@ services:
       timeout: 5s
       retries: 3
 
+  meme-generator-worker:
+    image: ${DOCKERHUB_USERNAME}/meme-generator-api:latest
+    container_name: meme-generator-worker
+    restart: unless-stopped
+    command: ["python", "worker.py"]
+    networks:
+      - web
+    volumes:
+      - meme-uploads:/app/uploads
+      - meme-outputs:/app/outputs
+      - meme-data:/app/data
+    healthcheck:
+      # The worker touches this heartbeat file in its loop and while rendering
+      test: ["CMD", "python", "-c", "import os,sys,time; p='/app/data/worker_heartbeat'; sys.exit(0 if os.path.exists(p) and time.time() - os.path.getmtime(p) < 300 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
 networks:
   web:
     external: true
+
+volumes:
+  meme-uploads:
+  meme-outputs:
+  meme-data:

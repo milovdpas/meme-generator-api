@@ -10,6 +10,10 @@ RUN apt-get update \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
+# Bake the background-removal model into the image so the first cutout job
+# doesn't stall on a ~170MB download at runtime
+RUN python -c "from rembg import new_session; new_session('isnet-general-use')"
+
 COPY . .
 
 EXPOSE 5000

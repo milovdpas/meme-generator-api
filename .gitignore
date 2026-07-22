@@ -1,6 +1,7 @@
 # Runtime working dirs (created by the app)
 uploads/
 outputs/
+data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

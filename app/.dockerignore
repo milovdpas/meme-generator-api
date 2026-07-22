@@ -2,6 +2,7 @@ __pycache__
 *.pyc
 uploads
 outputs
+data
 venv
 .venv
 .idea
