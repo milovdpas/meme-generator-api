@@ -64,3 +64,32 @@ jobs:
             docker compose up -d
             docker compose ps
           ENDSSH
+
+      # Ofelia reads ofelia.* labels when the scheduler starts and never again.
+      # A job it has already registered survives its container being recreated,
+      # which is why the hourly cleanup here has run since July untouched. What
+      # it never notices is a job that did not exist at its last start, or a
+      # changed schedule or command on an existing one.
+      #
+      # A neighbouring app lost a per-minute job to exactly this for a month:
+      # correct labels, a scheduler that had been up since before the app
+      # existed, and no sign of a problem anywhere except the work not happening.
+      #
+      # This deploy is the only moment these labels can change, so the restart
+      # goes here. It costs seconds, re-scans every labelled container on the
+      # host, and the check below means a scheduler that comes back without the
+      # job fails the deploy rather than looking green.
+      - name: Re-register scheduled jobs with the scheduler
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'ENDSSH'
+            set -e
+            docker restart scheduler
+            sleep 5
+
+            if ! docker logs scheduler 2>&1 | tail -20 | grep -q 'cleanup'; then
+              echo "The scheduler restarted without registering the cleanup job."
+              docker logs scheduler --tail=20
+              exit 1
+            fi
+            echo "cleanup registered."
+          ENDSSH
