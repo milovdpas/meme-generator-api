@@ -3,6 +3,6 @@ flask_cors==5.0.0
 moviepy==1.0.3
 numpy>=2.1.2,<3
 Werkzeug==3.1.8
-opencv-python-headless==4.10.0.84
+opencv-python-headless==5.0.0.93
 pillow>=10.4
 rembg[cpu]>=2.0.57
