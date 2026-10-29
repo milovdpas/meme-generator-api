@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 WORKDIR /app
 
 # libgl1/libglib2.0-0: required by opencv-python (not present in slim images)
